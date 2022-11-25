@@ -8,7 +8,7 @@ class SimulatorInterface:
         pass
 
     def successor(self, state, action):
-        print('successor', action, state)  # todo delete
+        print('successor', action, state)
         self.validate_action_input(action, state)
         return state.take_action(action)
 
@@ -40,39 +40,54 @@ class SimulatorInterface:
         return normalized_coords
 
     def validate_action_input(self, action, state):
+        print('input action', action)
         if not action['degree'] in [90, -90, 180]:
             raise 'invalid degree'
-        if not (0 <= action['index1'] < 26 and 0 < action['index2'] <= 26):
+        if not (0 <= action['index1'] <= 26 and 0 <= action['index2'] <= 26):
             raise 'invalid index range'
         if abs(action['index1'] - action['index2']) != 1:
             raise 'invalid index'
         if action not in self.valid_actions(state):
             raise 'invalid action'
+        return True
 
     def valid_actions(self, state):
         actions = []
-        for i in range(26):
+        for i in range(1, 26):
             cube_actions = self.find_actions_per_cube(i, i + 1, state)
             for action in cube_actions:
                 actions.append(action)
-        print('VALID ACTIONS', actions)  # todo delete
+            cube_actions = self.find_actions_per_cube(i, i - 1, state)
+            for action in cube_actions:
+                actions.append(action)
+        print('VALID ACTIONS', actions)
         return actions
 
     def find_actions_per_cube(self, i, j, state):
         actions = []
-        if 1 < i < 26:
-
-            v_check = self.is_vertical(state, [i - 1, i, i + 1])
+        if 0 < i < 26:
+            third = i - 1 if min(i, j) == i else j - 1
+            v_check = self.is_vertical(state, [third, i, j])
             if v_check:
                 actions.append({'index1': i, 'index2': j, 'degree': 90})
                 actions.append({'index1': i, 'index2': j, 'degree': -90})
                 actions.append({'index1': i, 'index2': j, 'degree': 180})
+                actions.append({'index1': j, 'index2': i, 'degree': 90})
+                actions.append({'index1': j, 'index2': i, 'degree': -90})
+                actions.append({'index1': j, 'index2': i, 'degree': 180})
                 return actions
-        sticking_indexes = self.find_sticking(i, state.sticking_cubes)
-        if len(sticking_indexes) > 0:
-            actions.append({'index1': i, 'index2': j, 'degree': 90})
-            actions.append({'index1': i, 'index2': j, 'degree': -90})
-            actions.append({'index1': i, 'index2': j, 'degree': 180})
+        if min(i, j) == i:
+            sticking_indexes = state.find_sticking(1, i, state.sticking_cubes)
+            if len(sticking_indexes) > 0:
+                actions.append({'index1': i, 'index2': j, 'degree': 90})
+                actions.append({'index1': i, 'index2': j, 'degree': -90})
+                actions.append({'index1': i, 'index2': j, 'degree': 180})
+        else:
+            sticking_indexes = state.find_sticking(-1, i, state.sticking_cubes)
+            if len(sticking_indexes) > 0:
+                actions.append({'index1': i, 'index2': j, 'degree': 90})
+                actions.append({'index1': i, 'index2': j, 'degree': -90})
+                actions.append({'index1': i, 'index2': j, 'degree': 180})
         return actions
 
     def is_vertical(self, state, indexes):

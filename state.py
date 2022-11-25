@@ -8,40 +8,65 @@ class State:
         self.sticking_cubes = sticking_cubes
 
     def take_action(self, action):
-        print('take action', action)  # todo delete
+        print('take action', action)
         (i, j, degree) = (action['index1'], action['index2'], action['degree'])
         coords_backup = self.coords[:]
-        begin = min(i, j)
-        end = max(i, j)
 
-        if end < 25:
-            is_joint = self.is_joint_axis([begin, end, end + 1])
+        if min(i, j) == i:
+            begin = i - 1
+            end = i
+            third = j
+
+            if begin < 0:
+                return False
+
+            is_joint = self.is_joint_axis([begin, end, third])
             if is_joint:
-                sticking_indexes = self.find_sticking(begin, self.sticking_cubes)
+                sticking_indexes = self.find_sticking(-1, i, self.sticking_cubes)
                 if len(sticking_indexes) > 0:
-                    axis = self.find_joint_axis(begin, end)
+                    axis = self.find_joint_axis(i, j)
+                    if sticking_indexes[-1]['is_v']:
+                        first_index = 0
+                    else:
+                        first_index = sticking_indexes[-1]['index2']
+                    self.rotate(axis, end, first_index, degree)
+            else:
+                axis = self.find_joint_axis(i, j)
+                self.rotate(axis, end, 0, degree)
+        else:
+            begin = i
+            third = j
+            end = j + 1
+
+            if end > 26:
+                return False
+
+            is_joint = self.is_joint_axis([begin, end, third])
+            if is_joint:
+                sticking_indexes = self.find_sticking(1, i, self.sticking_cubes)
+                if len(sticking_indexes) > 0:
+                    axis = self.find_joint_axis(i, j)
                     if sticking_indexes[-1]['is_v']:
                         last_index = len(self.coords) - 1
                     else:
                         last_index = sticking_indexes[-1]['index2']
                     self.rotate(axis, begin, last_index, degree)
             else:
-                axis = self.find_joint_axis(begin, end)
-                self.rotate(axis, begin, len(self.coords) - 1, degree)  # fixme this case
-        else:
-            axis = self.find_joint_axis(begin, end)
-            self.rotate(axis, begin, end, degree)
+                axis = self.find_joint_axis(i, j)
+                self.rotate(axis, begin, len(self.coords) - 1, degree)
 
         if not self.validate_move(self.coords):
             self.coords = coords_backup[:]
+            return False
+        return True
 
     def rotate(self, axis, i, j, degree):
-        print('rotate', axis, i, j, degree)  # todo delete
+        print('rotate', axis, i, j, degree)
         begin = min(i, j)
         end = max(i, j)
-        begin_coord = self.coords[begin]
+        begin_coord = self.coords[i]
         if degree == 180:
-            for i in range(begin, end):
+            for i in range(begin, end + 1):
                 coord = self.coords[i]
                 if axis == 'x':
                     x = begin_coord[0]
@@ -56,8 +81,9 @@ class State:
                 else:
                     z = begin_coord[2] + np.sign(begin_coord[2] - coord[2]) * abs(begin_coord[2] - coord[2])
                 self.coords[i] = [x, y, z]
+            print(self.coords)
         elif degree == 90 or degree == -90:
-            for i in range(begin, end):
+            for i in range(begin, end + 1):
                 coord = self.coords[i]
                 if axis == 'x':
                     x = begin_coord[0]
@@ -78,6 +104,7 @@ class State:
                         (begin_coord[1] - coord[1]) if axis == 'x' else (begin_coord[0] - coord[0])) * abs(
                         (begin_coord[1] - coord[1]) if axis == 'x' else (begin_coord[0] - coord[0]))
                 self.coords[i] = [x, y, z]
+            print(self.coords)
         else:
             raise 'wrong degree input'
 
@@ -99,14 +126,15 @@ class State:
             return True
         return False
 
-    def find_sticking(self, i, sticking_cubes):
+    def find_sticking(self, sign, i, sticking_cubes):
         indexes = []
         res = []
-        while i < 26:
+        while i < 26 or i > 0:
             obj = {}
-            if [i, i + 1] in sticking_cubes or [i + 1, i] in sticking_cubes:
+            if [i, i + sign] in sticking_cubes or [i + sign, i] in sticking_cubes:
                 if i not in indexes:
-                    is_v = not self.is_joint_axis([i, i + 1, i + 2])
+                    # is_v = not self.is_joint_axis([i, i + sign, i + (2 * sign)])
+                    is_v = not self.is_joint_axis([i - sign, i, i + sign])
                     indexes.append(i)
                     obj['index'] = i
                     obj['is_v'] = is_v
@@ -116,14 +144,14 @@ class State:
                         return res
             else:
                 return res
-            i = i + 1
+            i = i + sign
         return res
 
     def validate_move(self, coords):
         for index in range(len(coords)):
-            for i in range(index, len(coords)):
+            for i in range(index + 1, len(coords)):
                 if coords[index] == coords[i]:
-                    print('INVALID MOVE', coords[index], coords[i])  # todo delete
+                    print('INVALID MOVE', coords[index], coords[i])
                     return False
-        print('VALID MOVE')  # todo delete
+        print('VALID MOVE')
         return True
